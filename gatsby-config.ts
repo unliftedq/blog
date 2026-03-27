@@ -11,7 +11,7 @@ const config: GatsbyConfig = {
         },
         social: {
             twitter: `wangqiao11`,
-            github: `nodew`,
+            github: `unliftedq`,
         },
     },
     graphqlTypegen: true,
