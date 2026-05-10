@@ -1,0 +1,330 @@
+---
+title: Lazy Lists with Generators and Iterators
+date: 2018-08-25
+slug: lazy-list-with-generator-and-iterator
+tags:
+    - JavaScript
+    - Lazy List
+    - Generator
+    - Iterator
+keywords:
+    - Lazy List
+    - Generator
+    - Iterator
+    - JavaScript
+    - ES6
+    - Lazy Evaluation
+    - Functional Programming
+excerpt: "Once you go deep enough into programming, lazy evaluation becomes hard to avoid. We constantly run into situations where, to guard against potential overflows, we have to pick an upper or lower bound up front based on experience — usually by allocating a chunk of memory just in case, which is essentially deliberate waste. A lazy list, or a lazy evaluation strategy more broadly, can save us that overhead in the right situations and dramatically simplify our code. This post walks through how to build lazy lists in JavaScript using two ES6 features: generators and iterators."
+---
+
+## Meet the Lazy List
+
+If you've ever played with Haskell, the following expressions will look familiar:
+
+```Haskell
+repeat 1 -- => [1, 1, 1, 1, 1,...]
+cycle "abc" -- => "abcabcabc..."
+[1, 3..] -- => [1, 3, 5, 7, ...]
+```
+
+Each of those produces an infinite list. If you're coming from a more mainstream language, this might feel a bit baffling — how do you represent something infinite in finite memory? The trick is that Haskell uses lazy evaluation by default. Anything you haven't actually touched yet is just an unevaluated expression sitting in memory; no real computation has happened.
+
+By themselves, those snippets might not seem all that exciting. But take a look at this one.
+
+The Fibonacci sequence in Haskell:
+
+```Haskell
+fibonacci = 1 : 1 : zipWith (+) fibonacci (tail fibonacci)
+```
+
+`fibonacci` here is a lazy structure. When you start pulling values out of it, you get the first two `1`s, giving you something shaped like `1 : 1 : ...`. So how does this capture the property that `fib(n) = fib(n - 1) + fib(n - 2)`? Notice that `n - 1` and `n - 2` are exactly one position apart in the sequence — so `n` is just the sequence added to a one-step-shifted copy of itself.
+
+Here's another classic example: the [Sieve of Eratosthenes](https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes). If you're not familiar with the sieve, the Wikipedia page is a good starting point. Below is a small Haskell implementation:
+
+```Haskell
+primes = 2 : filter isPrime [3, 5..]
+  where
+    isPrime x = all (\p -> x `mod` p > 0) (takeWhile (\p -> p * p <= x) primes)
+```
+
+## So, Why Lazy?
+
+For working with sequences whose length isn't known up front, lazy lists make your code and its structure a lot more flexible. Take the `primes` list above. In a typical C or Java implementation, you'd have to declare some maximum length or value range up front — say, "all primes under 10000." If a later computation needs primes beyond that range, you'd have to call your generator function again to produce a longer list. Two problems fall out of this: first, you have to manually trigger that "factory" function; second, if you want to reuse what you've already computed, you end up hand-rolling a cache, which only adds complexity. The flip side is just as bad: you might generate a huge list up front and only use the first few elements — also a big waste.
+
+Lazy lists make our code more expressive. We can focus on the shape of the data itself instead of burning time managing memory and bookkeeping. Because lazy evaluation only computes a value when you actually ask for it, your computation is automatically minimized for free.
+
+A nice example of this is using lazy `ByteString` to read or write files in Haskell — the whole file isn't loaded into memory; bytes are pulled on demand. Sometimes you want to scan a huge file for a few entries, but without laziness you have no choice but to slurp hundreds of megabytes — or even gigabytes — into memory.
+
+There's also a great post from 2014 worth reading: [How to Speed Up Lo-Dash ×100? Introducing Lazy Evaluation](http://filimanjaro.com/blog/2014/introducing-lazy-evaluation/).
+
+## Building Lazy Lists in JavaScript
+
+Does JavaScript have anything lazy? Consider this:
+
+```TypeScript
+let fetchSomething = fetch('/some/thing');
+if (condition) {
+  fetchSomething = fetch('/some/thing/condition');
+}
+fetchSomething.then(() => {
+  // TODO
+});
+```
+
+`fetch` runs immediately, so when `condition` is true, this code fires off the request twice. That's clearly not what we want — we'd like the fetch to happen only when we're ready, not the moment it's declared. The usual fix is to wrap it in a function:
+
+```TypeScript
+let fetchSomething = () => fetch('/some/thing');
+if (condition) {
+  fetchSomething = () = fetch('/some/thing/condition');
+}
+fetchSomething.then(() => {
+  // TODO
+});
+```
+
+That same idea suggests a lazy list shape:
+
+```TypeScript
+class List<T> {
+  head: T | () => T
+  tail: List<T> | () => List<T>
+
+  constructor(head: T, tail: () => List<T>) {
+    this.head = () => head;
+    this.tail = tail;
+  }
+}
+```
+
+`List<T>` is essentially a singly linked list, but `tail` is a factory function rather than a concrete value — it builds the next node on demand. We only evaluate `head` when we actually visit a node, and we only evaluate `tail` when we move on to the next one. Until then, both stay as deferred expressions.
+
+This works in principle, but converting between this structure and a regular `Array` adds a lot of overhead we'd rather not pay.
+
+So is there something more native to JavaScript that lets us avoid hand-rolling this object, keep the code simple, and stay interoperable with the rest of the language?
+
+### Meet `Iterable`
+
+ES6 gave us exactly the answer I was looking for: the [Iteration Protocols](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Iteration_protocols). If MDN is too dense for you, here's the equivalent in TypeScript:
+
+```TypeScript
+interface Iterable<T> {
+  [Symbol.iterator](): Iterator<T>;
+}
+
+interface Iterator<T> {
+  next(): IteratorResult<T>;
+}
+
+interface IteratorResult<T> {
+  done: Boolean;
+  value?: T;
+}
+
+interface IterableIterator<T> {
+  [Symbol.iterator](): Iterator<T>;
+  next(): IteratorResult<T>;
+}
+```
+
+Anything that implements `Iterable` can be consumed with `for...of`, the spread operator `...iter`, `Array.from`, and so on. Iteration ends as soon as `next()` returns a result with `done: true`. Crucially, the next step only runs when you call `next()` — exactly the lazy behavior we want.
+
+So how would Fibonacci look in this style?
+
+```TypeScript
+class Fibonacci implements IterableIterator<number> {
+  private prev = 1;
+  private next = 1;
+
+  public next() {
+    let current = this.prev;
+    this.prev = this.next;
+    this.next = current + this.prev;
+    return {
+      done: false,
+      value: current
+    }
+  }
+
+  [Symbol.iterator]() {
+    return this;
+  }
+}
+
+const fib = new Fibonacci();
+fib.next() // => { done: false, value: 1 }
+fib.next() // => { done: false, value: 1 }
+fib.next() // => { done: false, value: 2 }
+// etc
+```
+
+That gets us a lazy infinite sequence — but it's also pretty noisy. Luckily, ES6 also gave us generators, which make it much easier to write `IterableIterator`s. In a sense, generators are syntactic sugar for the code above.
+
+With a generator, the same thing collapses to:
+
+```TypeScript
+export function* fibonacci() {
+  let prev = 1;
+  let next = 1;
+
+  while (true) {
+    yield prev;
+    const temp = prev;
+    prev = next;
+    next = temp + prev;
+  }
+}
+
+const fib = fibonacci();
+// etc
+```
+
+I'm not going to spend a section explaining generator syntax here. If you're new to it, [A Simple Guide to Understanding Javascript (ES6) Generators](https://medium.com/dailyjs/a-simple-guide-to-understanding-javascript-es6-generators-d1c350551950) is a good place to start.
+
+### Defining Infinite Lists
+
+Building on that, here are implementations of `repeat`, `cycle`, `iterate`, and `range` — the kinds of helpers we saw at the top of the post:
+
+```TypeScript
+export function* repeat<T>(item: T) {
+  while (true) {
+    yield item;
+  }
+}
+
+export function* cycle<T>(items: Iterable<T>) {
+  while (true) {
+    yield* [...items];
+  }
+}
+
+export function* iterate<T>(fn: (value: T) => T, initial: T) {
+  let val = initial;
+  while (true) {
+    yield val;
+    val = fn(val);
+  }
+}
+
+export function* range(start: number, end = Infinity, step = 1) {
+  while (start <= end) {
+    yield start;
+    start += step;
+  }
+}
+```
+
+The code is straightforward and reads pretty much exactly like the description.
+
+### Defining Operators
+
+Once we have lists, we want to operate on them. Here are `map`, `filter`, `take`, and `takeWhile`:
+
+```TypeScript
+export function* map<T, U>(fn: (value: T) => U, items: Iterable<T>) {
+  for (let item of items) {
+    yield fn(item);
+  }
+}
+
+export function* filter<T>(
+  predicate: (value: T) => boolean,
+  items: Iterable<T>
+) {
+  for (let item of items) {
+    if (predicate(item)) {
+      yield item;
+    }
+  }
+}
+
+export function* take<T>(n: number, items: Iterable<T>) {
+  let i = 0;
+  if (n < 1) return;
+
+  for (let item of items) {
+    yield item;
+    i++;
+    if (i >= n) {
+      return;
+    }
+  }
+}
+
+function* takeWhile<T>(
+  predicate: (value: T) => boolean,
+  items: Iterable<T>
+) {
+  for (let item of items) {
+    if (predicate(item)) {
+      yield item;
+    } else {
+      return;
+    }
+  }
+}
+```
+
+Nothing surprising there. The interesting one is `zip` — how do we merge two lists into one?
+
+The tricky part is that an `Iterable` doesn't have to expose a `next` method itself; arrays and strings, for example, don't. And not every `Iterable` supports indexed access either. You might think to call `Array.from` first and operate on plain arrays, but that won't work if either input is infinite — like our `fibonacci` from earlier.
+
+What we really want is a way to lift any `Iterable` into an `IterableIterator` so we can step through it with `next()` one element at a time.
+
+How? Conveniently, generators have a `yield*` operator that makes writing a `lift` helper trivial:
+
+```TypeScript
+export function* lift<T>(items: Iterable<T>): IterableIterator<T> {
+  yield* items;
+}
+```
+
+With `lift` in hand, `zip` and `zipWith` fall out naturally:
+
+```TypeScript
+export function* zip<T, G>(
+  seqA: Iterable<T>,
+  seqB: Iterable<G>
+): IterableIterator<[T, G]> {
+  const itorA = lift(seqA);
+  const itorB = lift(seqB);
+  let valA = itorA.next();
+  let valB = itorB.next();
+  while (!valA.done || !valB.done) {
+    yield [valA.value, valB.value];
+    valA = itorA.next();
+    valB = itorB.next();
+  }
+}
+
+export function* zipWith<T, G, R>(
+  fn: (a: T, b: G) => R,
+  seqA: Iterable<T>,
+  seqB: Iterable<G>
+): IterableIterator<R> {
+  const itorA = lift(seqA);
+  const itorB = lift(seqB);
+  let valA = itorA.next();
+  let valB = itorB.next();
+  while (!valA.done || !valB.done) {
+    yield fn(valA.value, valB.value);
+    valA = itorA.next();
+    valB = itorB.next();
+  }
+}
+```
+
+There are more helpers in the repo linked at the bottom of the post — I won't enumerate them all here.
+
+## Wrapping Up
+
+Generators and iterators are a genuinely powerful addition that ES6 baked into the language itself, and their evaluation model is naturally lazy.
+
+Back around 2013, when TJ released [co](https://github.com/tj/co), the sheer compactness of the code was striking. But in day-to-day use we've been held back partly by browser compatibility and partly by the kinds of problems we typically reach for them on. Personally, I think we still haven't tapped into what they're capable of. Combined with I/O and networking, generators and iterators can do a lot more for us.
+
+One important caveat: even though this whole post is about lazy lists, lazy lists aren't a silver bullet. Quite the opposite — overusing lazy structures can cause your program to accumulate a pile of unevaluated thunks, which itself blows up memory.
+
+The full code lives on [GitHub](https://github.com/unliftedq/lazyList).
+
+This post was originally published on the [Youzan Tech Blog](https://tech.youzan.com/lazy-list-with-generator-and-iterator/).

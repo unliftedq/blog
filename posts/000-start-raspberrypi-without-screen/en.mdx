@@ -1,0 +1,174 @@
+---
+title: Raspberry Pi Notes - Setting Up a Raspberry Pi Without a Monitor
+date: 2018-08-02
+slug: start-raspberrypi-without-screen
+tags:
+    - Raspberry Pi
+keywords:
+    - Raspberry Pi
+    - headless setup
+    - Wi-Fi
+    - UART
+    - TTL serial
+    - SSH
+excerpt: "While digging through some old gear, I unearthed a Raspberry Pi 2 Model B+ I'd picked up a few years back. It was covered in dust, but it still booted up just fine. In the spirit of not letting good hardware go to waste, I decided to put it back to work. This post walks through how I got the Pi up and running without a monitor and without an Ethernet cable — connecting over Wi-Fi via SSH, and over a USB-to-TTL serial cable. I'm writing it down both as a note to my future self and in case it helps anyone else hitting the same setup."
+---
+
+While digging through some old gear, I unearthed a Raspberry Pi 2 Model B+ I'd picked up a few years back. It was covered in dust, but it still booted up just fine. In the spirit of not letting good hardware go to waste, I figured I'd put it back to work. The catch: I didn't have a monitor lying around, and the most common alternative I kept finding online — connecting via Ethernet and sharing the host PC's network — wasn't an option either. Neither my Mac nor my Surface has an Ethernet port, and I didn't want to buy an adapter just for this.
+
+So is it a dead end? Of course not.
+
+## Setup
+
+-   Raspberry Pi 2 (a Pi 3 or a Pi Zero W should work too)
+
+-   USB Wi-Fi adapter (not needed on the Pi 3, which has Wi-Fi built in)
+
+-   8GB SD card
+
+-   Power supply
+
+-   A Wi-Fi network
+
+## Flashing the image
+
+Grab the latest `Raspbian Jessie` or `Raspbian Stretch` image from the [official site](https://www.raspberrypi.org/downloads/). I went with `2018-06-07-raspbian-stretch.img`. If you only plan to use the terminal, the corresponding Lite image works just as well.
+
+Once the image is downloaded, flash it onto your SD card. On Windows, the classic option is `Win32DiskImager`. On Mac, I'd recommend the open-source [Etcher](https://github.com/resin-io/etcher), or you can just use `diskutil` directly. I won't go into the details here.
+
+## Configuring Wi-Fi and SSH
+
+After flashing, a `boot` volume gets mounted. On Windows you can open it straight from File Explorer; on Mac I'd suggest using the command line.
+
+### Enabling SSH
+
+By default, SSH is disabled on the Pi. To turn it on at boot, just create an empty file called `ssh` at the root of the `boot` volume.
+
+```bash
+$ touch ssh
+```
+
+### Wi-Fi configuration
+
+Next, create a file called `wpa_supplicant.conf` at the root of the `boot` volume. When the Pi boots and finds this file, it copies it over to `/etc/wpa_supplicant/`, which is where the Wi-Fi configuration lives.
+
+Here's what to put inside.
+
+If you're on `Raspbian Jessie`, use:
+
+```bash
+network={
+    ssid="your-wifi-name"
+    psk="your-wifi-password"
+    key_mgmt=WPA-PSK
+}
+```
+
+If you're on `Raspbian Stretch`, use:
+
+```bash
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+network={
+    ssid="your-wifi-name"
+    psk="your-wifi-password"
+    key_mgmt=WPA-PSK
+}
+```
+
+There's an extra `ctrl_interface` line in the Stretch version. I'm not entirely sure what it does — if you know, feel free to drop a note in the comments.
+
+One thing to watch out for: the Wi-Fi network you put here should be the same one your PC is connected to.
+
+### Finding the IP
+
+We're almost there. The last thing we need before we can SSH in is the Pi's IP address on the local network.
+
+Plug the SD card into the Pi and power it on. The red LED lights up to indicate power, and the green LED blinks while the Pi reads from and writes to the SD card. Once the green LED settles down, the Pi has finished booting.
+
+If you're on Windows, the simplest trick is to open PowerShell and run `arp -a`. The dynamic entries in the output are the devices currently on your network.
+
+Run it once with the Pi powered off and once with it powered on — the new dynamic entry that appears is your Pi.
+
+If you'd rather have a GUI, `Advanced IP Scanner` works well on Windows, and `LanScan` works on Mac. Both let you spot the Raspberry Pi by its hostname.
+
+### Logging in over SSH
+
+```bash
+$ ssh pi@ip_address_of_your_raspberry_pi
+```
+
+The default password is `raspberry`, and you're in.
+
+## Connecting over a serial port
+
+The Pi is a powerful piece of open hardware, and of course it supports serial communication. There are two small catches, though: first, serial isn't enabled out of the box, and second, plenty of developers (especially those who don't usually do hardware work) won't have a USB-to-TTL cable lying around. I happened to have one left over from years ago. If you don't, but you're curious about this approach, you can grab one cheap online — they go for about ten bucks.
+
+### A note on USB-to-TTL cables
+
+One end is a USB connector. The other end has four wires in different colors:
+
+-   Red: power, usually 3V or 5V. The Pi runs at 5V if you want to power it through this cable.
+
+-   Black: ground.
+
+-   White: signal in.
+
+-   Green: signal out.
+
+### Enabling UART
+
+There are two scenarios:
+
+1. You can already get into the Pi (via the Wi-Fi method above or any other way). In that case, just run:
+
+```bash
+$ sudo raspi-config
+```
+
+In the menu that pops up, choose `Interfacing Options`, then `Serial`, and confirm with `YES`. Reboot the Pi and you're set.
+
+2. My case: the image is flashed, but the system hasn't been booted yet.
+
+In that case, look for two files at the root of the `boot` volume: `cmdline.txt` and `config.txt`. Open `cmdline.txt` first and check whether it contains `console=serial0,115200` — `115200` is the Pi's baud rate. It's usually already there, but if it isn't, append it to the end of the line. Then open `config.txt` and add `enable_uart=1` on a new line (`0` disables it, `1` enables it).
+
+Now pop the SD card into the Pi and power it on. We're ready to connect.
+
+### Wiring it up
+
+[https://pinout.xyz/](https://pinout.xyz/) is a great resource that lays out every GPIO pin on the Pi and what it does. Click any pin to see its description — super handy for any GPIO work.
+
+Open it up and find the pins labeled `RXD` and `TXD`. `TXD` is the Pi's UART output; `RXD` is its input.
+
+Connect the black wire of the USB-to-TTL cable to `Ground`, white to `TXD`, and green to `RXD`. If your Pi already has its own power supply, you can leave the red wire disconnected.
+
+Once everything's wired up, on Windows you can use PuTTY. Open PuTTY, pick the serial connection type, set the serial line to `COM3`, and the speed to `115200` (the Pi's baud rate). You'll get a little black window — hit Enter, and the Pi will prompt you for a username and password. Log in, and you've got full access.
+
+On Mac, plug the USB end into your machine and a new device shows up under `/dev` — something like `cu.usbserial`. From there, two command-line tools come in handy: `minicom` and `screen`.
+
+```bash
+$ brew install minicom
+
+# or
+
+$ brew install screen
+```
+
+Then connect with one of the following:
+
+```bash
+$ minicom -o -D /dev/cu.usbserial -b 115200
+
+# or
+
+$ screen /dev/cu.usbserial 115200
+```
+
+Same as on Windows: enter the username and password, and you're in.
+
+That's it.
+
+## Reference
+
+1. [Headless Raspberry Pi setup with wifi](https://styxit.com/2017/03/14/headless-raspberry-setup.html)
+
+2. [Connect To A Raspberry Pi And Pi Zero With A USB To TTL Serial Cable](https://www.thepolyglotdeveloper.com/2017/02/connect-raspberry-pi-pi-zero-usb-ttl-serial-cable/)

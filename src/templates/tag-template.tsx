@@ -1,27 +1,31 @@
 import * as React from "react";
 import { graphql, Link } from "gatsby";
-import _ from "lodash";
-import dayjs from "dayjs";
-import localizedFormat from "dayjs/plugin/localizedFormat";
 
 import Layout from "../components/Layout";
 import { Meta } from "../components/Meta";
 import { TagIcon } from "../components/TagIcon";
-
-dayjs.extend(localizedFormat);
+import { Locale, localizePath, useTranslation } from "../i18n";
+import { formatDate } from "../utils/date";
 
 interface TaggedPostsPageProps {
     data: GatsbyTypes.PostsByTagQuery;
     pageContext: {
         tag: string;
+        locale: Locale;
+        alternatePaths?: Partial<Record<Locale, string>>;
     };
 }
 
 const TagTemplate = ({ data, pageContext }: TaggedPostsPageProps) => {
+    const { locale, t } = useTranslation();
+
     return (
-        <Layout>
+        <Layout
+            locale={pageContext.locale}
+            alternatePaths={pageContext.alternatePaths}
+        >
             <div className="max-w-5xl mx-auto">
-                <Meta title={`Tag - ${pageContext.tag}`} />
+                <Meta title={`${t("nav.tags")} - ${pageContext.tag}`} />
                 <h1 className="text-3xl font-bold block mb-8 mt-12 flex items-center">
                     <TagIcon />
                     <span className="ml-2">{pageContext.tag}</span>
@@ -31,15 +35,18 @@ const TagTemplate = ({ data, pageContext }: TaggedPostsPageProps) => {
                         <li key={post.id} className="text-base mb-4">
                             <div className="text-2xl">
                                 <Link
-                                    to={`/posts/${
-                                        post.frontmatter!.slug || ""
-                                    }`}
+                                    to={localizePath(
+                                        `/posts/${
+                                            post.frontmatter!.slug || ""
+                                        }`,
+                                        locale
+                                    )}
                                 >
                                     {post.frontmatter!.title}
                                 </Link>
                             </div>
                             <div className="text-gray-400 dark:text-gray-700 italic">
-                                {dayjs(post.frontmatter!.date).format("LL")}
+                                {formatDate(post.frontmatter!.date, locale)}
                             </div>
                         </li>
                     ))}
@@ -50,9 +57,12 @@ const TagTemplate = ({ data, pageContext }: TaggedPostsPageProps) => {
 };
 
 export const query = graphql`
-    query PostsByTag($tag: String) {
+    query PostsByTag($tag: String, $locale: String) {
         posts: allMdx(
-            filter: { frontmatter: { tags: { in: [$tag] } } }
+            filter: {
+                frontmatter: { tags: { in: [$tag] } }
+                fields: { lang: { eq: $locale } }
+            }
             sort: { frontmatter: { date: DESC } }
         ) {
             nodes {

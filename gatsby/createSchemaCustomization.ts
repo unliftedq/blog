@@ -20,6 +20,23 @@ export const createSchemaCustomization = ({ actions }) => {
             github: String
         }
 
+        type Mdx implements Node {
+            fields: MdxFields
+        }
+
+        type MdxFields {
+            lang: String
+            translationKey: String
+            timeToRead: MdxTimeToRead
+        }
+
+        type MdxTimeToRead {
+            text: String
+            minutes: Float
+            time: Float
+            words: Int
+        }
+
         type Frontmatter {
             title: String
             excerpt: String

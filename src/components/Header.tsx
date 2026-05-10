@@ -1,6 +1,15 @@
-import { Link } from "gatsby";
+import { Link, navigate } from "gatsby";
 import React, { useContext, useState } from "react";
-import { navigate } from 'gatsby';
+
+import {
+    Locale,
+    localeNames,
+    locales,
+    localizePath,
+    stripLocaleFromPath,
+    useTranslation,
+} from "../i18n";
+
 import { MenuIcon } from "./Icons/MenuIcon";
 import { ThemeIcon } from "./Icons/ThemeIcon";
 import { ThemeContext } from "./ThemeProvider";
@@ -28,11 +37,28 @@ const NavItem = ({ link, name, active }: NavItemProps) => {
 
 export interface HeaderProps {
     activeNavItem?: string;
+    alternatePaths?: Partial<Record<Locale, string>>;
 }
 
-export const Header = ({ activeNavItem = "" }: HeaderProps) => {
+const computeAlternatePath = (
+    target: Locale,
+    current: Locale,
+    alternatePaths: Partial<Record<Locale, string>> | undefined
+): string => {
+    if (alternatePaths && alternatePaths[target]) {
+        return alternatePaths[target] as string;
+    }
+    if (typeof window === "undefined") {
+        return localizePath("/", target);
+    }
+    const stripped = stripLocaleFromPath(window.location.pathname);
+    return localizePath(stripped || "/", target);
+};
+
+export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
     const { theme, setTheme } = useContext(ThemeContext);
     const [showMenu, setShowMenu] = useState(false);
+    const { locale, t } = useTranslation();
 
     const handleThemeChange = () => {
         setTheme!(theme === "light" ? "dark" : "light");
@@ -46,45 +72,70 @@ export const Header = ({ activeNavItem = "" }: HeaderProps) => {
     const navigateTo = (link: string) => {
         navigate(link);
         setShowMenu(false);
-    }
+    };
+
+    const homeLink = localizePath("/", locale);
+    const postsLink = localizePath("/posts", locale);
+    const booksLink = localizePath("/books", locale);
+    const aboutLink = localizePath("/about", locale);
+
+    const otherLocales = locales.filter((l) => l !== locale);
+
+    const handleSwitchLanguage = (target: Locale) => {
+        const path = computeAlternatePath(target, locale, alternatePaths);
+        navigate(path);
+        setShowMenu(false);
+    };
 
     return (
         <header className="text-base mb-14">
             <div className="max-w-5xl flex flex-row items-center text-center lg:text-left m-auto">
                 <div className="leading-none flex flex-grow items-center">
                     <div className="block select-none py-1 font-bold text-xl text-gray-800 dark:text-gray-100">
-                        <Link to="/">Qiao@www:~$</Link>
+                        <Link to={homeLink}>Qiao@www:~$</Link>
                     </div>
                 </div>
                 <div className="hidden md:flex flex-row items-center">
                     <nav className="select-none mt-4 lg:mt-0" role="menu">
                         <ul className="text-xl text-gray-700 dark:text-gray-200 flex">
                             <NavItem
-                                name="Home"
-                                link="/"
+                                name={t("nav.home")}
+                                link={homeLink}
                                 active={activeNavItem === "home"}
                             />
                             <NavItem
-                                name="Post"
-                                link="/posts"
+                                name={t("nav.posts")}
+                                link={postsLink}
                                 active={activeNavItem === "posts"}
                             />
                             <NavItem
-                                name="Publication"
-                                link="/books"
+                                name={t("nav.books")}
+                                link={booksLink}
                                 active={activeNavItem === "books"}
                             />
                             <NavItem
-                                name="About"
-                                link="/about"
+                                name={t("nav.about")}
+                                link={aboutLink}
                                 active={activeNavItem === "about"}
                             />
                         </ul>
                     </nav>
+                    {otherLocales.map((target) => (
+                        <button
+                            key={target}
+                            type="button"
+                            onClick={() => handleSwitchLanguage(target)}
+                            className="mx-3 select-none mt-4 lg:mt-0 cursor-pointer text-base font-semibold text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400"
+                            title={t("common.switchLanguage")}
+                            aria-label={t("common.switchLanguage")}
+                        >
+                            {localeNames[target]}
+                        </button>
+                    ))}
                     <div
                         className="mx-3 select-none mt-4 lg:mt-0 cursor-pointer"
                         onClick={handleThemeChange}
-                        title="Toggle theme"
+                        title={t("common.toggleTheme")}
                     >
                         <ThemeIcon />
                     </div>
@@ -116,49 +167,57 @@ export const Header = ({ activeNavItem = "" }: HeaderProps) => {
                                     className="cursor text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
                                     role="menuitem"
                                     tabIndex={-1}
-                                    id="menu-item-0"
-                                    onClick={() => navigateTo('/')}
+                                    onClick={() => navigateTo(homeLink)}
                                 >
-                                    Home
+                                    {t("nav.home")}
                                 </div>
                                 <div
                                     className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
                                     role="menuitem"
                                     tabIndex={-1}
-                                    id="menu-item-1"
-                                    onClick={() => navigateTo('/posts')}
+                                    onClick={() => navigateTo(postsLink)}
                                 >
-                                    Post
+                                    {t("nav.posts")}
                                 </div>
                                 <div
                                     className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
                                     role="menuitem"
                                     tabIndex={-1}
-                                    id="menu-item-2"
-                                    onClick={() => navigateTo('/books')}
+                                    onClick={() => navigateTo(booksLink)}
                                 >
-                                    Publication
+                                    {t("nav.books")}
                                 </div>
                                 <div
                                     className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
                                     role="menuitem"
                                     tabIndex={-1}
-                                    id="menu-item-3"
-                                    onClick={() => navigateTo('/about')}
+                                    onClick={() => navigateTo(aboutLink)}
                                 >
-                                    About
+                                    {t("nav.about")}
                                 </div>
                             </div>
                             <div className="py-1" role="none">
+                                {otherLocales.map((target) => (
+                                    <div
+                                        key={target}
+                                        className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
+                                        role="menuitem"
+                                        tabIndex={-1}
+                                        onClick={() => handleSwitchLanguage(target)}
+                                    >
+                                        {localeNames[target]}
+                                    </div>
+                                ))}
                                 <div
                                     className="flex flex-row text-gray-700 px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
                                     role="menuitem"
                                     tabIndex={-1}
                                     onClick={handleThemeChange}
-                                    id="menu-item-4"
                                 >
                                     <ThemeIcon />{" "}
-                                    <span className="px-1">Toggle theme</span>
+                                    <span className="px-1">
+                                        {t("common.toggleTheme")}
+                                    </span>
                                 </div>
                             </div>
                         </div>

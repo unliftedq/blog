@@ -3,37 +3,39 @@ import { graphql } from "gatsby";
 
 import Layout from "../components/Layout";
 import { Meta } from "../components/Meta";
+import { Locale, useTranslation } from "../i18n";
 
 interface AboutPageProps {
     data: GatsbyTypes.AboutPageQuery;
+    pageContext: {
+        locale?: Locale;
+        alternatePaths?: Partial<Record<Locale, string>>;
+    };
 }
 
-export default ({ data }: AboutPageProps) => {
+export default ({ data, pageContext }: AboutPageProps) => {
+    const { t } = useTranslation();
     const githubUrl = `github.com/${data.site?.siteMetadata?.social?.github}`;
     const twitterUrl = `twitter.com/${data.site?.siteMetadata?.social?.twitter}`;
     const email = data.site?.siteMetadata?.author?.email;
 
     return (
-        <Layout activeNavItem="about">
+        <Layout
+            activeNavItem="about"
+            locale={pageContext.locale}
+            alternatePaths={pageContext.alternatePaths}
+        >
             <div className="max-w-5xl mx-auto">
-                <Meta title="About me" />
+                <Meta title={t("about.title")} />
                 <h1 className="text-5xl font-bold block text-center mb-14">
-                    About me
+                    {t("about.title")}
                 </h1>
                 <div className="prose xl:prose-xl dark:prose-invert dark:xl:prose-dark-xl max-w-none">
-                    <p>I'm Qiao Wang, a software developer living in China.</p>
+                    <p>{t("about.body.p1")}</p>
+                    <p>{t("about.body.p2")}</p>
+                    <p>{t("about.body.p3")}</p>
 
-                    <p>
-                        I got my bachelor's degree at Xiamen University, majored
-                        in micro-electronics. Currently I'm working for
-                        Microsoft. I'm experienced in NodeJS/JavaScript and .NET
-                        development and I’ve been working in the field of web
-                        development for 10 years.
-                    </p>
-
-                    <p>My favorite languages are Haskell, C# and TypeScript.</p>
-
-                    <h2 className="text-center">Get in touch</h2>
+                    <h2 className="text-center">{t("about.getInTouch")}</h2>
                     <div>
                         <ul className="text-center list-none">
                             <li>

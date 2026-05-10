@@ -1,26 +1,34 @@
 import * as React from "react";
-import { Link, graphql } from "gatsby";
-import dayjs from "dayjs";
-import localizedFormat from "dayjs/plugin/localizedFormat";
-import _ from "lodash";
+import { graphql } from "gatsby";
 
 import Layout from "../components/Layout";
 import { Meta } from "../components/Meta";
-
-dayjs.extend(localizedFormat);
+import { Locale } from "../i18n";
 
 interface BookTemplateProps {
     data: GatsbyTypes.BookQuery;
-    children: React.ReactNode
+    pageContext: {
+        locale: Locale;
+        alternatePaths?: Partial<Record<Locale, string>>;
+    };
+    children: React.ReactNode;
 }
 
-const BookTemplate = ({ data: { mdx }, children }: BookTemplateProps) => {
+const BookTemplate = ({
+    data: { mdx },
+    pageContext,
+    children,
+}: BookTemplateProps) => {
     if (mdx === null) {
         return null;
     }
 
     return (
-        <Layout activeNavItem="books">
+        <Layout
+            activeNavItem="books"
+            locale={pageContext.locale}
+            alternatePaths={pageContext.alternatePaths}
+        >
             <div className="max-w-5xl mx-auto">
                 <Meta
                     title={mdx.frontmatter!.name || ""}
@@ -29,16 +37,15 @@ const BookTemplate = ({ data: { mdx }, children }: BookTemplateProps) => {
                     extras={[
                         {
                             name: "keywords",
-                            content:
-                                mdx.frontmatter!.keywords!.join(","),
+                            content: (mdx.frontmatter!.keywords || []).join(
+                                ","
+                            ),
                         },
                     ]}
                     image={mdx?.frontmatter?.thumbnail || ""}
                 />
                 <div className="prose xl:prose-xl dark:prose-invert dark:xl:prose-dark-xl max-w-none">
-                    <h1 className="mb-0 xl:mb-2">
-                        {mdx.frontmatter!.name}
-                    </h1>
+                    <h1 className="mb-0 xl:mb-2">{mdx.frontmatter!.name}</h1>
                     {children}
                 </div>
             </div>
@@ -56,6 +63,9 @@ export const pageQuery = graphql`
                 thumbnail
                 excerpt
                 keywords
+            }
+            fields {
+                lang
             }
         }
     }

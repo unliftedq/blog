@@ -1,0 +1,328 @@
+---
+title: First Steps with F# - Fetching Real-Time Stock Quotes
+date: 2019-07-13
+slug: crawling-stock-data-in-fsharp
+tags:
+  - F#
+  - Crawler
+keywords:
+  - FSharp
+  - Console application
+  - Stock scraper
+  - Real-time quotes
+  - .NET
+excerpt: "If you're going to obsess over the market, you've got to keep an eye on it. But are you really going to pull out your phone or open a browser tab at work? A self-respecting retail investor uses the command line: low-key, and infinitely customizable. And since I make my living in the .NET ecosystem, my tool of choice is F#."
+---
+
+If you're going to obsess over the market, you've got to keep an eye on it. So what do you do — pull out your phone at work, or open a browser tab?
+
+A self-respecting retail investor uses the command line. It's low-key, and you get to customize the output however you want.
+
+And since I make my living in the .NET ecosystem, my tool of choice is F#.
+
+### Why F#?
+
+-   F# is a functional-first language. Compared to C#, the syntax is more flexible and a lot more concise. At the same time, F# isn't as strict as Haskell — you can mix paradigms freely, and it talks to the rest of .NET seamlessly. Anything C# can do, F# can do too, and you still get to use almost any DLL on .NET.
+
+-   F# has a more powerful type system than C#.
+
+-   C# already has LINQ, which is great by OOP-language standards. But thanks to computation expressions, F# offers [Query Expressions](https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/query-expressions) — a LINQ-style syntax that's both more powerful and easier to extend.
+
+-   Computation expressions also give F# nicer async support via [Async Workflows](https://docs.microsoft.com/en-us/dotnet/fsharp/language-reference/asynchronous-workflows).
+
+The short version: anything C# can do, F# can do — usually with less code.
+
+### Setting up the project
+
+Let's get started. First, create a new project:
+
+```powershell
+dotnet new console -lang F# -o TStock
+```
+
+`-lang` picks F# as the language, and `-o` sets the output directory.
+
+Open the generated `Program.fs` and you'll see:
+
+```fsharp
+// Learn more about F# at http://fsharp.org
+
+open System
+
+[<EntryPoint>]
+let main argv =
+    printfn "Hello World from F#!"
+    0 // return an integer exit code
+
+```
+
+Run it with `dotnet run` and you'll get `Hello World from F#!` in the console.
+
+### Managing dependencies with Paket
+
+[Paket](https://fsprojects.github.io/Paket/index.html) is a package manager built by the F# community. It's a bit more flexible than `nuget` and can manage dependencies from both NuGet and GitHub.
+
+```powershell
+choco install paket
+```
+
+If you don't have Paket installed, [chocolatey](https://chocolatey.org/) makes it easy. Once installed, initialize Paket in your project:
+
+```powershell
+paket init
+```
+
+You'll see `.paket`, `.paket-files`, and `paket.dependencies` show up in your project.
+
+Add the following to `paket.dependencies`:
+
+```
+source https://www.nuget.org/api/v2
+
+nuget FSharp.Core
+nuget FSharp.Data
+nuget FSharp.Json
+```
+
+Install everything with `.\paket\paket.exe install`.
+
+The dependencies now live in the `packages` directory — but how do you actually use them?
+
+Create a `paket.references` file next to your `*.fsproj` and list the dependencies for that project:
+
+```
+FSharp.Core
+FSharp.Data
+FSharp.Json
+```
+
+The reason for the separate file is that solutions usually contain multiple projects.
+
+Run `.\paket\paket.exe install` again. A new file `Paket.Restore.targets` appears under `.paket`, and your `.fsproj` gets a new line:
+
+```xml
+    <Import Project=".paket\Paket.Restore.targets" />
+```
+
+That's what wires the installed packages into your project.
+
+### Writing the code
+
+We'll leave the body of `main` alone for now and start on the actual logic.
+
+```fsharp
+type Code = Code of string
+
+type StockCode =
+    | SH of Code
+    | SZ of Code
+    | HK of Code
+    | NSDQ of Code
+
+type Stock = {
+    Name: string
+    Code: StockCode
+}
+```
+
+`Code` is the stock's ticker, but A-shares, Hong Kong stocks, and US stocks all have to be handled differently. How do we tell them apart? I introduced a `StockCode` union type, which lets us describe a much wider range of stocks.
+
+What would the equivalent look like in C#?
+
+```csharp
+class BaseCode
+{
+    private string _code { get; set; }
+    public string Code
+    {
+        get() {
+            return _code;
+        }
+    }
+
+    Sz(string code)
+    {
+        _code = code
+    }
+
+    public string ToString()
+    {
+        return Code;
+    }
+}
+
+class SHCode: BaseCode {
+    SHCode(code: string): base(code) {}
+    public override string ToString()
+    {
+        return "sh" + Code;
+    }
+}
+
+class SZCode: BaseCode
+{
+    /// blabla
+}
+
+class HKCode: BaseCode
+{
+    /// blabla
+}
+
+/// blabla
+```
+
+Next up is the data. This isn't really the focus of the post — plenty of sites publish real-time stock quotes (Sina Finance is one option), and any of them will do. Two things worth noting: most of these sites have anti-scraping measures, and stock data needs to refresh in real time, so it's typically delivered through async endpoints (jsonp or json). The exact endpoint differs from site to site — you'll have to dig around a bit to find one.
+
+Once you've got the endpoint, the fun begins.
+
+```fsharp
+type StockData = {
+    Price: float
+    Open: float
+    High: float
+    Low: float
+    UpDown: float
+    UpDownRate: float
+    ExchangeRatio: float
+}
+
+type StockResult = {
+    Stock: Stock
+    Data: StockData option
+}
+```
+
+`StockData` is the shape of the data we get back, and `StockResult` is the full response — pairing the data with the stock it belongs to so the rest of the code is easier to work with.
+
+```fsharp
+let getStockData (stock: Stock) =
+    async {
+        let code = stock.Code
+        let baseURL = sprintf "http://%s.%s/%s/quotelist" (getHostPrefix code) baseHost (getRegion code)
+        let url = sprintf "%s?code=%s&column=%s&callback=%s" baseURL (getCodeString code) column callback
+        let! resp = Http.AsyncRequest url
+        if resp.StatusCode > 300 then
+            return { Stock = stock; Data = None }
+        else
+            let stockData = resp.Body.ToString() |> parseData code
+            return { Stock = stock; Data = stockData }
+    }
+```
+
+The logic is simple: take a stock, build the full URL from its code, and fire an async request to fetch the data. The request itself can fail for any number of reasons, so `Data` is wrapped in an `Option`.
+
+The endpoint I'm hitting returns jsonp, so we can't deserialize it into an object directly. That's what the `parseData` helper is for.
+
+```fsharp
+let parseData code (text: string) =
+    try
+        let valuePart = text.Split(":").[1]
+        let unit = match code with
+                    | HK _ -> 1000.0
+                    | _ -> 100.0
+        valuePart.Substring(3, valuePart.Length - 10).Split(",")
+        |> Seq.map (float >> (fun x -> x / unit))
+        |> Seq.toArray
+        |> fun s ->
+            Some {
+                Price = s.[0]
+                Open = s.[1]
+                High = s.[2]
+                Low = s.[3]
+                UpDown = s.[4]
+                UpDownRate = s.[5]
+                ExchangeRatio = s.[6]
+            }
+    with
+        | _ -> None
+```
+
+Parsing is one of those operations that loves to blow up — bad data, malformed responses, you name it. I don't really care *why* it failed, so I just return `None` on any exception. The `try` block stays focused on the happy path, which makes the code easier to read.
+
+There are two odd-looking symbols in there: `|>` and `>>`. Both are just functions. `|>` is defined as `( |> ): 'T1 -> ('T1 -> 'U) -> 'U` — it takes the value on the left and applies it to the function on the right, like a pipe that streams data through a chain of transformations. It's probably the most common operator you'll see in F# code. `>>` is defined as `( >> ) : ('T1 -> 'T2) -> ('T2 -> 'T3) -> 'T1 -> 'T3` — function composition, which glues two functions together into one.
+
+A bit of trivia: F# decides associativity for these infix operators based on the *shape* of the symbol, rather than requiring you to declare it explicitly the way Haskell does.
+
+With those helpers in place, the core functionality is essentially done. Time to update `main`:
+
+```fsharp
+[<EntryPoint>]
+let main argv =
+    let stocks = [
+        {
+            Name = "MSFT";
+            Code = NSDQ (Code "MSFT")
+        }
+    ]
+
+    stocks
+    |> Seq.map getStockData
+    |> Async.Parallel
+    |> Async.RunSynchronously
+    |> Seq.iter
+        (fun result ->
+            match result with
+            | result when result.Data = None -> printfn "|%-20s|%10s|%10s|%10s|%10s|%10s|%10s|" result.Stock.Name "_" "_" "_" "_" "_" "_"
+            | { StockResult.Stock = stock; StockResult.Data = Some data } ->
+                printfn "|%-20s|%10.2f|%10.2f|%10.2f|%10.2f|%10.2f|%10.2f%%|" stock.Name data.Price data.Open data.Low data.High data.UpDown data.UpDownRate
+            | _ -> ()
+        )
+    0
+```
+
+`printfn` formats the results into a table that gets printed to the terminal.
+
+### Going further
+
+To make this more flexible, let's pull `stocks` out of the source and load it from an external JSON file passed in as a command-line argument. I'll use the `FSharp.Json` library for this.
+
+First, we need to decorate `StockCode` and `Stock` with a few attributes. Mapping a union type to JSON takes a little extra setup, but the code itself is pretty straightforward.
+
+```fsharp
+open FSharp.Json
+
+[<JsonUnion(Mode=UnionMode.CaseKeyAsFieldValue, CaseKeyField="type", CaseValueField="code")>]
+type StockCode =
+    | SH of Code
+    | SZ of Code
+    | HK of Code
+    | NSDQ of Code
+
+type Stock = {
+    [<JsonField("name")>]
+    Name: string
+    [<JsonField("code")>]
+    Code: StockCode
+}
+```
+
+Then update `main`. Pull the filename out of `argv`, read the file with `File`, and let `FSharp.Json` deserialize it into the type we need. Everything else stays the same.
+
+```fsharp
+[<EntryPoint>]
+let main argv =
+    let filename = argv.[0]
+    let content = File.ReadAllText(filename)
+    let stocks = Json.deserialize<Stock[]>(content)
+
+    // ...
+```
+
+Here's a sample `stocks.json`:
+
+```json
+[
+    {
+        "name": "MSFT",
+        "code": {
+            "type": "NSDQ",
+            "code": "MSFT"
+        }
+    }
+]
+```
+
+That's the whole thing. I've glossed over a few minor details to keep the post short.
+
+The full source is up on my [Github](https://github.com/unliftedq/TStock) if you want to take a look.
