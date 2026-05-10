@@ -1,5 +1,5 @@
 import { Link, navigate } from "gatsby";
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import {
     Locale,
@@ -20,20 +20,19 @@ interface NavItemProps {
     active: boolean;
 }
 
-const NavItem = ({ link, name, active }: NavItemProps) => {
-    return (
-        <li
-            role="menuitem"
-            className={`main-nav-item px-5 hover:font-semibold ${
-                active ? "font-bold hover:font-bold" : ""
-            }`}
+const NavItem = ({ link, name, active }: NavItemProps) => (
+    <li
+        role="menuitem"
+        className={`main-nav-item ${active ? "is-active" : ""}`}
+    >
+        <Link
+            to={link}
+            className="px-4 py-2 inline-block text-[0.95rem] tracking-tight font-medium text-ink-900 dark:text-cream-50"
         >
-            <Link to={link} data-text={name}>
-                {name}
-            </Link>
-        </li>
-    );
-};
+            {name}
+        </Link>
+    </li>
+);
 
 export interface HeaderProps {
     activeNavItem?: string;
@@ -58,16 +57,22 @@ const computeAlternatePath = (
 export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
     const { theme, setTheme } = useContext(ThemeContext);
     const [showMenu, setShowMenu] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
     const { locale, t } = useTranslation();
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 16);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
 
     const handleThemeChange = () => {
         setTheme!(theme === "light" ? "dark" : "light");
         setShowMenu(false);
     };
 
-    const toggleMenu = () => {
-        setShowMenu(!showMenu);
-    };
+    const toggleMenu = () => setShowMenu(!showMenu);
 
     const navigateTo = (link: string) => {
         navigate(link);
@@ -87,17 +92,30 @@ export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
         setShowMenu(false);
     };
 
+    const pillBase =
+        "rounded-full border border-ink-900/10 dark:border-cream-50/15 bg-cream-50/70 dark:bg-ink-900/60 backdrop-blur-xl";
+
     return (
-        <header className="text-base mb-14">
-            <div className="max-w-5xl flex flex-row items-center text-center lg:text-left m-auto">
-                <div className="leading-none flex flex-grow items-center">
-                    <div className="block select-none py-1 font-bold text-xl text-gray-800 dark:text-gray-100">
-                        <Link to={homeLink}>Qiao@www:~$</Link>
-                    </div>
-                </div>
-                <div className="hidden md:flex flex-row items-center">
-                    <nav className="select-none mt-4 lg:mt-0" role="menu">
-                        <ul className="text-xl text-gray-700 dark:text-gray-200 flex">
+        <header
+            className={`fixed top-4 inset-x-0 z-50 px-4 transition-all duration-500 ${
+                scrolled ? "" : "translate-y-0"
+            }`}
+        >
+            <div className="mx-auto max-w-7xl">
+                {/* Desktop: split-pill nav */}
+                <div className="hidden md:flex items-center justify-between gap-3">
+                    <Link
+                        to={homeLink}
+                        className={`${pillBase} group inline-flex items-center gap-3 px-5 py-2.5 transition-all duration-300 hover:border-ink-900/25 dark:hover:border-cream-50/30`}
+                    >
+                        <span className="block size-2.5 rounded-full bg-amber-500 transition-transform duration-500 group-hover:scale-125" />
+                        <span className="font-mono text-[0.78rem] tracking-[0.18em] uppercase text-ink-900 dark:text-cream-50">
+                            {t("brand.mark")}
+                        </span>
+                    </Link>
+
+                    <nav role="menu" className={`${pillBase} px-2 py-1.5`}>
+                        <ul className="flex items-center">
                             <NavItem
                                 name={t("nav.home")}
                                 link={homeLink}
@@ -120,105 +138,103 @@ export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
                             />
                         </ul>
                     </nav>
-                    {otherLocales.map((target) => (
-                        <button
-                            key={target}
-                            type="button"
-                            onClick={() => handleSwitchLanguage(target)}
-                            className="mx-3 select-none mt-4 lg:mt-0 cursor-pointer text-base font-semibold text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400"
-                            title={t("common.switchLanguage")}
-                            aria-label={t("common.switchLanguage")}
-                        >
-                            {localeNames[target]}
-                        </button>
-                    ))}
+
                     <div
-                        className="mx-3 select-none mt-4 lg:mt-0 cursor-pointer"
-                        onClick={handleThemeChange}
-                        title={t("common.toggleTheme")}
+                        className={`${pillBase} flex items-center gap-1 px-2 py-1.5`}
                     >
-                        <ThemeIcon />
+                        {otherLocales.map((target) => (
+                            <button
+                                key={target}
+                                type="button"
+                                onClick={() => handleSwitchLanguage(target)}
+                                className="px-3 py-1 rounded-full font-mono text-[0.72rem] uppercase tracking-[0.18em] text-ink-900 dark:text-cream-50 hover:bg-ink-900/5 dark:hover:bg-cream-50/10 transition-colors cursor-pointer"
+                                title={t("common.switchLanguage")}
+                                aria-label={t("common.switchLanguage")}
+                            >
+                                {localeNames[target]}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={handleThemeChange}
+                            className="size-8 inline-flex items-center justify-center rounded-full hover:bg-ink-900/5 dark:hover:bg-cream-50/10 transition-colors text-ink-900 dark:text-cream-50 cursor-pointer"
+                            title={t("common.toggleTheme")}
+                            aria-label={t("common.toggleTheme")}
+                        >
+                            <ThemeIcon />
+                        </button>
                     </div>
                 </div>
-                <div className="md:hidden relative block text-left">
-                    <div>
-                        <button
-                            type="button"
-                            className="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-100 dark:ring-gray-600"
-                            onClick={toggleMenu}
-                            id="menu-button"
-                            aria-expanded="true"
-                            aria-haspopup="true"
-                        >
-                            <MenuIcon />
-                        </button>
-                    </div>
+
+                {/* Mobile pill */}
+                <div
+                    className={`${pillBase} md:hidden flex items-center justify-between px-4 py-2.5 relative`}
+                >
+                    <Link
+                        to={homeLink}
+                        className="inline-flex items-center gap-2"
+                    >
+                        <span className="block size-2 rounded-full bg-amber-500" />
+                        <span className="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-ink-900 dark:text-cream-50">
+                            {t("brand.mark")}
+                        </span>
+                    </Link>
+
+                    <button
+                        type="button"
+                        onClick={toggleMenu}
+                        className="size-9 inline-flex items-center justify-center rounded-full text-ink-900 dark:text-cream-50 cursor-pointer"
+                        aria-expanded={showMenu}
+                        aria-haspopup="true"
+                        aria-label={t("common.menu")}
+                    >
+                        <MenuIcon />
+                    </button>
 
                     {showMenu && (
                         <div
-                            className="absolute right-0 z-10 mt-2 w-56 origin-top-right divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none dark:bg-gray-700 dark:ring-gray-600"
+                            className="absolute right-0 top-full mt-3 w-64 origin-top-right rounded-3xl border border-ink-900/10 dark:border-cream-50/15 bg-cream-50 dark:bg-ink-900 shadow-2xl shadow-ink-900/10 overflow-hidden"
                             role="menu"
                             aria-orientation="vertical"
-                            aria-labelledby="menu-button"
-                            tabIndex={-1}
                         >
-                            <div className="py-1" role="none">
-                                <div
-                                    className="cursor text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                    role="menuitem"
-                                    tabIndex={-1}
-                                    onClick={() => navigateTo(homeLink)}
-                                >
-                                    {t("nav.home")}
-                                </div>
-                                <div
-                                    className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                    role="menuitem"
-                                    tabIndex={-1}
-                                    onClick={() => navigateTo(postsLink)}
-                                >
-                                    {t("nav.posts")}
-                                </div>
-                                <div
-                                    className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                    role="menuitem"
-                                    tabIndex={-1}
-                                    onClick={() => navigateTo(booksLink)}
-                                >
-                                    {t("nav.books")}
-                                </div>
-                                <div
-                                    className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                    role="menuitem"
-                                    tabIndex={-1}
-                                    onClick={() => navigateTo(aboutLink)}
-                                >
-                                    {t("nav.about")}
-                                </div>
+                            <div className="py-2">
+                                {[
+                                    { label: t("nav.home"), link: homeLink },
+                                    { label: t("nav.posts"), link: postsLink },
+                                    { label: t("nav.books"), link: booksLink },
+                                    { label: t("nav.about"), link: aboutLink },
+                                ].map((item) => (
+                                    <button
+                                        key={item.link}
+                                        type="button"
+                                        onClick={() => navigateTo(item.link)}
+                                        className="w-full text-left px-5 py-3 text-base text-ink-900 dark:text-cream-50 hover:bg-ink-900/5 dark:hover:bg-cream-50/10 transition-colors cursor-pointer"
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
                             </div>
-                            <div className="py-1" role="none">
+                            <div className="border-t border-ink-900/10 dark:border-cream-50/10 py-2">
                                 {otherLocales.map((target) => (
-                                    <div
+                                    <button
                                         key={target}
-                                        className="text-gray-700 block px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                        role="menuitem"
-                                        tabIndex={-1}
-                                        onClick={() => handleSwitchLanguage(target)}
+                                        type="button"
+                                        onClick={() =>
+                                            handleSwitchLanguage(target)
+                                        }
+                                        className="w-full text-left px-5 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.18em] text-ink-900 dark:text-cream-50 hover:bg-ink-900/5 dark:hover:bg-cream-50/10 transition-colors cursor-pointer"
                                     >
                                         {localeNames[target]}
-                                    </div>
+                                    </button>
                                 ))}
-                                <div
-                                    className="flex flex-row text-gray-700 px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 dark:text-gray-100 dark:hover:bg-gray-800"
-                                    role="menuitem"
-                                    tabIndex={-1}
+                                <button
+                                    type="button"
                                     onClick={handleThemeChange}
+                                    className="w-full flex items-center gap-3 px-5 py-2.5 font-mono text-[0.72rem] uppercase tracking-[0.18em] text-ink-900 dark:text-cream-50 hover:bg-ink-900/5 dark:hover:bg-cream-50/10 transition-colors cursor-pointer"
                                 >
-                                    <ThemeIcon />{" "}
-                                    <span className="px-1">
-                                        {t("common.toggleTheme")}
-                                    </span>
-                                </div>
+                                    <ThemeIcon />
+                                    {t("common.toggleTheme")}
+                                </button>
                             </div>
                         </div>
                     )}
