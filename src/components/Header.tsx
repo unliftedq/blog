@@ -21,13 +21,14 @@ interface NavItemProps {
 }
 
 const NavItem = ({ link, name, active }: NavItemProps) => (
-    <li
-        role="menuitem"
-        className={`main-nav-item ${active ? "is-active" : ""}`}
-    >
+    <li role="menuitem" className="main-nav-item">
         <Link
             to={link}
-            className="px-4 py-2 inline-block text-[0.95rem] tracking-tight font-medium text-ink-900 dark:text-cream-50"
+            className={`relative inline-flex items-center rounded-full px-4 py-1.5 text-[0.92rem] tracking-tight font-medium transition-colors duration-300 ${
+                active
+                    ? "bg-ink-900 text-cream-50 dark:bg-cream-50 dark:text-ink-900"
+                    : "text-ink-900 dark:text-cream-50 hover:bg-ink-900/5 dark:hover:bg-cream-50/10"
+            }`}
         >
             {name}
         </Link>

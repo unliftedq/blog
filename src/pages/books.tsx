@@ -33,7 +33,7 @@ export default ({ data, pageContext }: BooksPageProps) => {
             <section className="px-6 md:px-10">
                 <div className="mx-auto max-w-7xl pt-8 md:pt-16 pb-16 md:pb-24">
                     <Reveal className="font-mono text-[0.72rem] tracking-[0.22em] uppercase text-slate-soft">
-                        {t("nav.books")} / {books.length}
+                        {books.length} {t("books.countLabel")}
                     </Reveal>
                     <Reveal delay={1} className="mt-6">
                         <h1

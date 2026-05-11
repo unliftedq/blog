@@ -32,11 +32,15 @@ export type TranslationKey =
     | "home.empty"
     | "posts.title"
     | "posts.empty"
+    | "posts.countLabel"
     | "books.title"
     | "books.empty"
+    | "books.countLabel"
     | "tags.title"
     | "tags.empty"
+    | "tags.countLabel"
     | "about.title"
+    | "about.eyebrow"
     | "about.body.p1"
     | "about.body.p2"
     | "about.body.p3"
@@ -87,11 +91,15 @@ export const translations: Record<Locale, Record<TranslationKey, string>> = {
         "home.empty": "暂无内容",
         "posts.title": "文章",
         "posts.empty": "暂无文章",
+        "posts.countLabel": "篇笔记",
         "books.title": "出版物",
         "books.empty": "暂无出版物",
+        "books.countLabel": "篇长文",
         "tags.title": "标签",
         "tags.empty": "暂无标签",
+        "tags.countLabel": "个主题",
         "about.title": "关于",
+        "about.eyebrow": "这里是谁的笔记",
         "about.body.p1":
             "这是一份小小的笔记本。这里的作者是一名生活在中国的软件开发者。",
         "about.body.p2":
@@ -143,11 +151,15 @@ export const translations: Record<Locale, Record<TranslationKey, string>> = {
         "home.empty": "Nothing here yet.",
         "posts.title": "Writing",
         "posts.empty": "No posts yet.",
+        "posts.countLabel": "notes so far",
         "books.title": "Long-form",
         "books.empty": "No publications yet.",
+        "books.countLabel": "longer pieces",
         "tags.title": "Topics",
         "tags.empty": "No tags yet.",
+        "tags.countLabel": "threads",
         "about.title": "About",
+        "about.eyebrow": "Whose notebook is this",
         "about.body.p1":
             "A small notebook, kept by a software developer based in China.",
         "about.body.p2":

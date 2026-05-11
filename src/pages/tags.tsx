@@ -42,7 +42,7 @@ export default ({ data, pageContext }: TagsPageProps) => {
             <section className="px-6 md:px-10">
                 <div className="mx-auto max-w-7xl pt-8 md:pt-16 pb-16 md:pb-24">
                     <Reveal className="font-mono text-[0.72rem] tracking-[0.22em] uppercase text-slate-soft">
-                        {t("nav.tags")} / {tags.length}
+                        {tags.length} {t("tags.countLabel")}
                     </Reveal>
                     <Reveal delay={1} className="mt-6">
                         <h1

@@ -347,29 +347,6 @@ html.dark body {
     background: none;
 }
 
-/* Header active link underline */
-.main-nav-item a {
-    position: relative;
-    text-decoration: none;
-}
-.main-nav-item a::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -6px;
-    height: 1px;
-    background: currentColor;
-    transform: scaleX(0);
-    transform-origin: right center;
-    transition: transform 320ms cubic-bezier(0.7, 0, 0.3, 1);
-}
-.main-nav-item a:hover::after,
-.main-nav-item.is-active a::after {
-    transform: scaleX(1);
-    transform-origin: left center;
-}
-
 /* Inline pill image inside large headings */
 .inline-pill {
     display: inline-block;
