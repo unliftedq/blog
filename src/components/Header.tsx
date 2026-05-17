@@ -10,6 +10,7 @@ import {
     useTranslation,
 } from "../i18n";
 
+import { Logo } from "./Icons/Logo";
 import { MenuIcon } from "./Icons/MenuIcon";
 import { ThemeIcon } from "./Icons/ThemeIcon";
 import { ThemeContext } from "./ThemeProvider";
@@ -107,12 +108,10 @@ export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
                 <div className="hidden md:flex items-center justify-between gap-3">
                     <Link
                         to={homeLink}
-                        className={`${pillBase} group inline-flex items-center gap-3 px-5 py-2.5 transition-all duration-300 hover:border-ink-900/25 dark:hover:border-cream-50/30`}
+                        aria-label={t("brand.mark")}
+                        className="group inline-flex items-center transition-transform duration-300 hover:scale-105"
                     >
-                        <span className="block size-2.5 rounded-full bg-amber-500 transition-transform duration-500 group-hover:scale-125" />
-                        <span className="font-mono text-[0.78rem] tracking-[0.18em] uppercase text-ink-900 dark:text-cream-50">
-                            {t("brand.mark")}
-                        </span>
+                        <Logo className="size-8" />
                     </Link>
 
                     <nav role="menu" className={`${pillBase} px-2 py-1.5`}>
@@ -173,12 +172,10 @@ export const Header = ({ activeNavItem = "", alternatePaths }: HeaderProps) => {
                 >
                     <Link
                         to={homeLink}
-                        className="inline-flex items-center gap-2"
+                        aria-label={t("brand.mark")}
+                        className="inline-flex items-center"
                     >
-                        <span className="block size-2 rounded-full bg-amber-500" />
-                        <span className="font-mono text-[0.7rem] tracking-[0.18em] uppercase text-ink-900 dark:text-cream-50">
-                            {t("brand.mark")}
-                        </span>
+                        <Logo className="size-7" />
                     </Link>
 
                     <button

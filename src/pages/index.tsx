@@ -119,16 +119,13 @@ export default ({ data, pageContext }: HomePageProps) => {
                 <div className="mx-auto max-w-7xl">
                     <Reveal className="grid grid-cols-1 md:grid-cols-12 gap-x-8 gap-y-3 mb-14">
                         <div className="md:col-span-9">
-                            <p className="font-mono text-[0.7rem] tracking-[0.22em] uppercase text-slate-soft mb-3">
-                                {t("home.latestPosts")}
-                            </p>
                             <h2
                                 className="font-display font-medium tracking-[-0.02em] leading-[1] text-ink-900 dark:text-cream-50"
                                 style={{
                                     fontSize: "clamp(1.75rem, 3.4vw, 2.75rem)",
                                 }}
                             >
-                                {t("home.latestPostsLead")}
+                                {t("home.latestPosts")}
                             </h2>
                         </div>
                         <div className="md:col-span-3 md:flex md:items-end md:justify-end">
@@ -212,38 +209,6 @@ export default ({ data, pageContext }: HomePageProps) => {
                                             )}
                                         </Link>
                                     </Reveal>
-                                );
-                            })}
-                        </ul>
-                    )}
-
-                    {posts.length > featured.length && (
-                        <ul className="mt-16 divide-y divide-ink-900/10 dark:divide-cream-50/10">
-                            {posts.slice(featured.length).map((post) => {
-                                const slug = post.frontmatter?.slug || "";
-                                return (
-                                    <li key={post.id}>
-                                        <Link
-                                            to={localizePath(
-                                                `/posts/${slug}`,
-                                                locale
-                                            )}
-                                            className="grid grid-cols-1 md:grid-cols-12 gap-4 py-6 group"
-                                        >
-                                            <div className="md:col-span-2 font-mono text-[0.72rem] tracking-[0.18em] uppercase text-slate-soft">
-                                                {formatDate(
-                                                    post.frontmatter?.date,
-                                                    locale
-                                                )}
-                                            </div>
-                                            <div className="md:col-span-9 font-display text-2xl md:text-3xl tracking-tight text-ink-900 dark:text-cream-50 group-hover:text-amber-500 transition-colors">
-                                                {post.frontmatter?.title}
-                                            </div>
-                                            <div className="md:col-span-1 md:text-right text-amber-500 transition-transform duration-300 group-hover:translate-x-1">
-                                                &rarr;
-                                            </div>
-                                        </Link>
-                                    </li>
                                 );
                             })}
                         </ul>

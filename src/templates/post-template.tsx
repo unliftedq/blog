@@ -133,9 +133,10 @@ const PostTemplate = ({
                     )}
                 </div>
 
-                {/* Banner — wider than the article column for editorial feel. */}
+                {/* Banner — aligned to the article column so it never
+                    exceeds the body width. */}
                 {banner && (
-                    <Reveal as="image" className="mx-auto max-w-5xl mt-12 md:mt-16">
+                    <Reveal as="image" className="mx-auto max-w-3xl mt-12 md:mt-16">
                         <div className="overflow-hidden rounded-xl border border-ink-900/10 dark:border-cream-50/10 aspect-[16/9] bg-cream-100 dark:bg-ink-800">
                             <img
                                 src={banner}

@@ -256,6 +256,18 @@ html.dark body {
     margin-top: 0.75em;
     margin-bottom: 0.75em;
 }
+.prose-editorial img {
+    /* Images may be smaller than the article column, but never wider. */
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.75em auto;
+    border-radius: 8px;
+    border: 1px solid rgba(10, 9, 8, 0.08);
+}
+.dark .prose-editorial img {
+    border-color: rgba(250, 247, 240, 0.1);
+}
 .prose-editorial a {
     text-decoration: none;
     border-bottom: 1px solid currentColor;
