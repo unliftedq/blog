@@ -3,20 +3,379 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================
+   THEME TOKENS — editorial cream / ink with one warm accent
+   ============================================================ */
+@theme {
+    --font-display: "Cabinet Grotesk", "Geist", ui-sans-serif, system-ui,
+        sans-serif;
+    --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
+
+    --color-cream-50: #faf7f0;
+    --color-cream-100: #f4efe2;
+    --color-cream-200: #e8e1cf;
+    --color-cream-300: #d8cfb8;
+    --color-cream-400: #b9ad90;
+
+    --color-ink-50: #e7e5df;
+    --color-ink-100: #c2bdb1;
+    --color-ink-200: #8a8478;
+    --color-ink-400: #3a3733;
+    --color-ink-600: #1f1d1b;
+    --color-ink-800: #131210;
+    --color-ink-900: #0a0908;
+
+    --color-amber-500: #d97706;
+    --color-amber-400: #ea8f1c;
+    --color-amber-300: #f5b362;
+
+    --color-slate-soft: #6f6a60;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+html,
+body {
+    background-color: var(--color-cream-50);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "ss02", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+html.dark,
+html.dark body {
+    background-color: var(--color-ink-900);
+    color: var(--color-cream-100);
+}
+
+::selection {
+    background: var(--color-ink-900);
+    color: var(--color-cream-50);
+}
+.dark ::selection {
+    background: var(--color-cream-50);
+    color: var(--color-ink-900);
+}
+
+/* ============================================================
+   AMBIENT BACKGROUND — soft radial wash, very subtle
+   ============================================================ */
+.bg-paper {
+    background:
+        radial-gradient(
+            1200px 600px at 90% -10%,
+            rgba(217, 119, 6, 0.06),
+            transparent 60%
+        ),
+        radial-gradient(
+            900px 500px at -10% 30%,
+            rgba(10, 9, 8, 0.04),
+            transparent 60%
+        ),
+        var(--color-cream-50);
+}
+
+.dark .bg-paper {
+    background:
+        radial-gradient(
+            1200px 600px at 90% -10%,
+            rgba(245, 179, 98, 0.08),
+            transparent 60%
+        ),
+        radial-gradient(
+            900px 500px at -10% 30%,
+            rgba(255, 255, 255, 0.03),
+            transparent 60%
+        ),
+        var(--color-ink-900);
+}
+
+.grain::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.06;
+    mix-blend-mode: multiply;
+}
+.dark .grain::before {
+    opacity: 0.18;
+    mix-blend-mode: overlay;
+}
+
+.hairline {
+    background-image: linear-gradient(
+        to right,
+        transparent,
+        rgba(10, 9, 8, 0.18),
+        transparent
+    );
+    height: 1px;
+}
+.dark .hairline {
+    background-image: linear-gradient(
+        to right,
+        transparent,
+        rgba(250, 247, 240, 0.18),
+        transparent
+    );
+}
+
+/* ============================================================
+   MARQUEE
+   ============================================================ */
+@keyframes marquee {
+    from {
+        transform: translate3d(0, 0, 0);
+    }
+    to {
+        transform: translate3d(-50%, 0, 0);
+    }
+}
+.animate-marquee {
+    animation: marquee 38s linear infinite;
+}
+
+/* ============================================================
+   REVEAL — IntersectionObserver toggles .is-visible
+   ============================================================ */
+.reveal {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+    transition:
+        opacity 900ms cubic-bezier(0.2, 0.6, 0.2, 1),
+        transform 900ms cubic-bezier(0.2, 0.6, 0.2, 1);
+    will-change: opacity, transform;
+}
+.reveal.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+}
+.reveal-delay-1 {
+    transition-delay: 80ms;
+}
+.reveal-delay-2 {
+    transition-delay: 160ms;
+}
+.reveal-delay-3 {
+    transition-delay: 240ms;
+}
+.reveal-delay-4 {
+    transition-delay: 320ms;
+}
+
+.img-reveal {
+    opacity: 0.2;
+    transform: scale(0.92);
+    filter: saturate(0.6);
+    transition:
+        opacity 1100ms ease-out,
+        transform 1100ms ease-out,
+        filter 1100ms ease-out;
+}
+.img-reveal.is-visible {
+    opacity: 1;
+    transform: scale(1);
+    filter: saturate(1);
+}
+
+.scrub-word {
+    color: rgba(10, 9, 8, 0.18);
+    transition: color 600ms ease-out;
+}
+.dark .scrub-word {
+    color: rgba(250, 247, 240, 0.16);
+}
+.scrub-word.is-visible {
+    color: var(--color-ink-900);
+}
+.dark .scrub-word.is-visible {
+    color: var(--color-cream-50);
+}
+
+/* ============================================================
+   PROSE — editorial MDX article styling
+   ============================================================ */
+.prose-editorial {
+    --tw-prose-body: var(--color-ink-600);
+    --tw-prose-headings: var(--color-ink-900);
+    --tw-prose-lead: var(--color-ink-400);
+    --tw-prose-links: var(--color-ink-900);
+    --tw-prose-bold: var(--color-ink-900);
+    --tw-prose-quotes: var(--color-ink-400);
+    --tw-prose-quote-borders: var(--color-amber-500);
+    --tw-prose-captions: var(--color-slate-soft);
+    --tw-prose-code: var(--color-ink-900);
+    --tw-prose-hr: rgba(10, 9, 8, 0.12);
+    font-family: var(--font-display);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+}
+.dark .prose-editorial {
+    --tw-prose-body: var(--color-cream-200);
+    --tw-prose-headings: var(--color-cream-50);
+    --tw-prose-lead: var(--color-cream-300);
+    --tw-prose-links: var(--color-cream-50);
+    --tw-prose-bold: var(--color-cream-50);
+    --tw-prose-quotes: var(--color-cream-300);
+    --tw-prose-captions: var(--color-cream-400);
+    --tw-prose-code: var(--color-cream-50);
+    --tw-prose-hr: rgba(250, 247, 240, 0.12);
+}
+.prose-editorial h1,
+.prose-editorial h2,
+.prose-editorial h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    font-weight: 600;
+}
+.prose-editorial h2 {
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    margin-top: 2.25em;
+    margin-bottom: 0.75em;
+    line-height: 1.15;
+}
+.prose-editorial h3 {
+    font-size: clamp(1.2rem, 1.8vw, 1.5rem);
+    margin-top: 1.75em;
+    margin-bottom: 0.5em;
+    line-height: 1.2;
+}
+.prose-editorial p {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+.prose-editorial ul,
+.prose-editorial ol {
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+}
+.prose-editorial img {
+    /* Images may be smaller than the article column, but never wider. */
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.75em auto;
+    border-radius: 8px;
+    border: 1px solid rgba(10, 9, 8, 0.08);
+}
+.dark .prose-editorial img {
+    border-color: rgba(250, 247, 240, 0.1);
+}
+.prose-editorial a {
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    transition: color 200ms ease;
+}
+.prose-editorial a:hover {
+    color: var(--color-amber-500);
+}
+.prose-editorial code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: rgba(10, 9, 8, 0.05);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+}
+.dark .prose-editorial code {
+    background: rgba(250, 247, 240, 0.06);
+}
+.prose-editorial code::before,
+.prose-editorial code::after {
+    content: "";
+}
+
+.prose-editorial .gatsby-highlight {
+    margin: 1.5rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-ink-900);
+}
+.prose-editorial .gatsby-highlight pre[class*="language-"] {
+    margin: 0;
+    background: transparent !important;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    padding: 1.25rem 1.5rem;
+}
+.prose-editorial .gatsby-highlight code[class*="language-"] {
+    background: transparent;
+    padding: 0;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn-ink {
+    background: var(--color-ink-900);
+    color: var(--color-cream-50);
+    transition:
+        transform 220ms ease,
+        background 220ms ease;
+}
+.btn-ink:hover {
+    background: var(--color-amber-500);
+    transform: translateY(-1px);
+}
+.dark .btn-ink {
+    background: var(--color-cream-50);
+    color: var(--color-ink-900);
+}
+.dark .btn-ink:hover {
+    background: var(--color-amber-300);
+}
+
+.btn-ghost {
+    color: var(--color-ink-900);
+    border: 1px solid rgba(10, 9, 8, 0.25);
+    transition:
+        border-color 220ms ease,
+        color 220ms ease,
+        transform 220ms ease;
+}
+.btn-ghost:hover {
+    color: var(--color-amber-500);
+    border-color: var(--color-amber-500);
+    transform: translateY(-1px);
+}
+.dark .btn-ghost {
+    color: var(--color-cream-50);
+    border-color: rgba(250, 247, 240, 0.25);
+}
+.dark .btn-ghost:hover {
+    color: var(--color-amber-300);
+    border-color: var(--color-amber-300);
+}
+
+/* Prismjs override (kept) */
 .token.operator {
     background: none;
 }
 
-.dark .dark\:prose-dark .gatsby-highlight :where(pre):not(:where([class~="not-prose"] *)) {
-    padding: 1em;
-    margin: .5em 0;
+/* Inline pill image inside large headings */
+.inline-pill {
+    display: inline-block;
+    vertical-align: middle;
+    width: clamp(3.5rem, 7vw, 6rem);
+    height: clamp(2rem, 3.6vw, 3.25rem);
+    border-radius: 999px;
+    background-size: cover;
+    background-position: center;
+    margin: 0 0.35em 0.15em;
+    filter: contrast(1.08) saturate(0.9);
 }
 
-.main-nav-item a::before {
-    display: block;
-    content: attr(data-text);
-    font-weight: bold;
-    height: 0;
-    visibility: hidden;
-    overflow: hidden;
+/* Cinematic image filter (for picsum stock) */
+.cinematic {
+    filter: grayscale(0.15) contrast(1.08) saturate(0.85) brightness(0.96);
+}
+.dark .cinematic {
+    filter: grayscale(0.25) contrast(1.12) saturate(0.7) brightness(0.85);
 }

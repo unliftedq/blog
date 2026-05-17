@@ -51,6 +51,7 @@ export const createSchemaCustomization = ({ actions }) => {
 
             cover: String
             thumbnail: String
+            banner: String
         }
     `);
 };

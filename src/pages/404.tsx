@@ -20,22 +20,33 @@ export default ({ pageContext }: NotFoundPageProps) => {
             locale={pageContext.locale}
             alternatePaths={pageContext.alternatePaths}
         >
-            <div>
-                <Meta title={t("notFound.title")} />
-                <h1 className="mx-auto font-bold text-5xl text-center mt-32 md:mt-36 lg:mt-48">
-                    {t("notFound.title")}
-                </h1>
-                <div className="mx-auto font-bold text-gray-600 dark:text-gray-200 text-xl text-center mt-8">
-                    {t("notFound.message")}
-                </div>
-                <div className="flex justify-center mt-8">
-                    <button className="mx-auto px-4 pt-1 pb-2 text-base text-blue-600 dark:text-blue-400 font-semibold rounded-full border border-blue-200 hover:text-white dark:hover:text-white hover:bg-blue-600 hover:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2">
-                        <Link to={localizePath("/", locale)}>
+            <Meta title={t("notFound.title")} />
+
+            <section className="px-6 md:px-10 min-h-[70vh] flex items-center">
+                <div className="mx-auto max-w-7xl w-full">
+                    <p className="font-mono text-[0.72rem] tracking-[0.22em] uppercase text-slate-soft">
+                        Error / 404
+                    </p>
+                    <h1
+                        className="mt-6 font-display font-medium tracking-[-0.04em] leading-[0.85] text-ink-900 dark:text-cream-50"
+                        style={{ fontSize: "clamp(6rem, 22vw, 18rem)" }}
+                    >
+                        404
+                    </h1>
+                    <p className="mt-10 max-w-xl text-lg md:text-xl leading-relaxed text-ink-600 dark:text-cream-200">
+                        {t("notFound.message")}
+                    </p>
+                    <div className="mt-10">
+                        <Link
+                            to={localizePath("/", locale)}
+                            className="btn-ink rounded-full px-6 py-3 text-sm font-medium tracking-tight inline-flex items-center gap-2"
+                        >
                             {t("notFound.cta")}
+                            <span aria-hidden>&rarr;</span>
                         </Link>
-                    </button>
+                    </div>
                 </div>
-            </div>
+            </section>
         </Layout>
     );
 };
