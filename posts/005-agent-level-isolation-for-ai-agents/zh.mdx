@@ -1,0 +1,97 @@
+---
+title: 为什么 AI Agent 需要 Agent 级隔离
+date: 2026-05-18
+slug: agent-level-isolation-for-ai-agents
+tags:
+  - AI
+  - Agent
+keywords:
+  - AI Agent
+  - Agent Isolation
+  - Skills
+  - Hermes
+  - MCP Gateway
+excerpt: "Agent profile 能改变一个 agent 的说话方式，却不能改变它实际能访问的环境、工具、密钥和记忆。真正需要隔离的不是人格，而是信任域和运行域。本文讨论为什么单 profile 不够、为什么把所有 skills 塞进一个通用 agent 会失控、哪些场景反而不需要独立 Soul 与 memory，以及 Hermes agent 的隔离设计还可以怎样变得更轻。"
+banner: /images/banners/agent-level-isolation-for-ai-agents.png
+
+---
+
+AI Agent 正在从“只会聊天的对话窗口”，变成一个可以长期运行、调用工具、修改文件、启动进程的小型操作员。agent 越有用，它接触到的东西就越敏感：仓库、密钥、数据库、浏览器会话、云服务、长期记忆、用户偏好。
+
+这时再谈 agent，就不能只谈“它像谁”了。更重要的问题是：它到底属于哪个信任域？它能看见什么、调用什么以及记住什么？
+
+很多产品用 profile 来回答这个问题：换一份 system prompt，换一组默认工具，agent 就像换了一个角色。profile 的确有用，但它解决的是表达方式和任务偏好的差异，没有决运行边界的问题。即使有多个 profile 的划分，这些 profile 仍然跑在同一个进程里，共享同一批 skills、mcp 工具，同时拥有相同的记忆，这些 profile 像是给 agent 带上了不同的面具，面具之下，就是同一个东西。
+
+真正的 agent 隔离不是说让 agent 表现出不同的人格，而是要从根本上为 agent 建立自己的 domain，不同的 agent 从记忆、skills 到 tools 等都应该是独立的。
+
+## Profile 能换角色，不能换边界
+
+Profile 的边界通常停在提示词层。它可以告诉模型“你现在是前端专家”“你现在只负责测试”“你现在回答要简短”，但它很难限制 agent runtime 已经拥有的能力。
+
+几个例子就够说明问题：
+
+- 给 DevOps agent 配置的 token，PPT agent 理论上也能访问到。
+- 工具白名单变了，背后的 MCP tools、HTTP client、数据库连接池等还是同一批。
+- 当我们需要划分 agent 的时候，这个 agent 天然就是面向特定领域的，一个面向 coding 的 agent，不需要 office 套件的操作能力。
+
+所以 profile 更像“角色卡”，它适合表达同一个 agent 在不同场景下的工作风格。真正需要隔离时，边界应该落在更低的位置：工具表、凭据、工作目录、长期记忆、依赖、进程，至少要有几项是独立的。否则所谓多个 agent，实际只是同一个 agent 戴了几张不同的人格面具。
+
+## 把所有 skills、tools 塞进一个通用 agent 有哪些问题
+
+Skill 这个抽象本身是好的。把一组提示词、工具、脚本、使用说明打包起来，让 agent 按需获得某种能力，这比把所有逻辑硬编码在一个巨大的 system prompt 里自然得多。
+
+问题出在另一个方向：既然 skill 好用，那就把所有 skill 都装到一个通用 agent 上。短期看，这个 agent 变得“什么都会”。长期看，它会同时在四个层面失控。
+
+第一是挤占上下文窗口，浪费 token。每个 skill 都要贡献工具描述、参数说明、示例和约束，这些信息有助于大模型找到真正有用的 skill，但是现实就是，当 skill 膨胀之后，会直接挤占大模型的上下文窗口，本地提供 100 个 skill 的描述，最终真正有用的只是其中一个。
+
+第二是同类型的 skill 会互相冲突。试想这里同时挂了四五个 frontend design 的 skill，它们分别面向官网设计、移动端界面、后台系统、营销落地页等不同场景，每个 skill 都有自己擅长的领域，但它们的描述往往又非常相似，都会写自己擅长“设计”“实现”“优化”“重构”之类的任务。结果就是，这些 skill 一旦被放进同一个 agent 里，大模型在执行任务时其实并不能稳定地找到正确的那个 skill。你想要的是“这个场景固定使用这个 skill”，实际得到的却是“模型觉得哪个像就用哪个”。
+
+第三是权限边界消失。写代码的 skill、发邮件的 skill、查数据库的 skill、管理云资源的 skill，如果都挂在同一个 agent 下，它们事实上共享一个信任域。一个看似无害的“总结这个 issue”任务，可能因为 prompt injection 被引导去读取文件、查询环境变量、再调用外部发送工具。单个 skill 的作者也许只考虑了自己的权限，但它一旦进入通用 agent，就要和所有其它 skill 共同承担风险。
+
+第四是 agent 天然就是面向不同领域的，没必要追求一套 skill 包打天下。一个 finance agent 并不需要 ux design agent 的 skill，就像一个飞行员不需要游泳的技能，这并不妨碍他是一个优秀的飞行员。真正有效的 agent，本来就应该围绕自己的领域去组织能力，而不是为了追求“全能”把一堆无关 skill 也背在身上。skill 一旦脱离了领域边界，数量越多，噪声就越大，最终只会让 agent 离自己的核心职责越来越远。
+
+这才是 agent 级别进行隔离的主要理由。它不是为了形式上多几个 agent，而是为了面向不同场景的 agent 集拥有不同的能力和作用域，也让 skill 的选择在架构上是具有确定性的，而不是每轮推理里的猜测：App Store agent 只装 App Store metadata skill，Release agent 只装发布相关 skill，Debug agent 只装日志和诊断 skill。进入特定 agent，就自然进入了特定场景，也自然只会调用那组为这个场景准备的 skill。
+
+## Agent memory 的设计
+
+Memory 是当前 agent 领域很火的话题。很多人会觉得，只要有了 memory，agent 才算真正“活起来”。但这件事很容易被说过头。memory 不是 agent 的默认必需品，很多时候，agent 根本不需要拥有独立的长期记忆。
+
+最典型的就是 worker 类 agent。它们更像工蜂：接到指令，完成一项明确任务，然后把结果交回来。它们不负责长期关系，不负责持续演进，也不需要为下一次任务积累一套稳定人格。对这类 agent 来说，任务当下的上下文和短期状态通常就够了，硬塞一份独立 memory，只会增加维护成本，也更容易引入无意义的污染。对于这类 agent，需要持续改进的是它的 skill，而不是 memory。
+
+真正需要 memory 的，通常是那些会长期存在于系统中、需要不断演进的 agent。比如长期负责某个代码库、某条业务链路、某类用户关系、某种工作流的 agent，它们需要逐步积累偏好、历史决策、失败经验和稳定做法。对于这类 agent，memory 才不是装饰，而是能力本身的一部分。
+
+所以设计 agent isolation 方案的时候，memory 应该是一个可以控制的开关，而不是默认开启的选项。
+
+## Hermes agent 的隔离思路
+
+Hermes agent 有意思的地方，是它没有把 agent 简化成一份 profile，而是把 agent 当成一个独立的运行单元来处理。它的核心思路可以概括为三层。
+
+第一层是独立的 agent 身份和状态。不同 agent 可以有自己的 Soul、memory、skill 目录和工作目录。这样一来，“前端 agent”长期积累的是组件、样式、交互模式；“后端 agent”长期积累的是 API、数据库、部署流程。它们不是在一份共享 memory 里抢上下文，而是各自维护自己的长期状态。
+
+第二层是独立的运行环境。Hermes 当前更偏向用进程级隔离来承载 agent：不同 agent 可以独立启动、独立加载环境变量、独立挂载工具和依赖。这个设计的好处很直接：一个 agent 崩了，不会把其它 agent 一起带走；一个 agent 的凭据和工具，也不会天然暴露给另一个 agent。
+
+第三层是通过 gateway 对外通信。gateway 负责把宿主（编辑器、CLI、CI）和 agent runtime 连接起来，处理请求路由、工具暴露、权限检查、审计等横切逻辑。宿主不需要直接管理每个 agent 的细节，只需要知道“我要把这个任务交给哪个 agent”。
+
+这套设计最重要的价值，不是“每个 agent 都有一个进程”这个实现细节，而是它把 agent 从 profile 提升成了一个有边界的实体：有自己的身份、状态、工具、环境和外部接口。只有到这一层，隔离才不再只是 prompt 上的约定。
+
+## Hermes 的设计还可以更进一步
+
+Hermes 的方向是对的，但是还可以更进一步。现在的隔离思路仍然有些过于绑定 per-process 这个模型，好像每个 agent 都必须对应一个独立进程，隔离才算成立。其实更值得抽象出来的，不是进程本身，而是 agent 自己的 context 和 scope。
+
+一个更自然的方向，是在 runtime 里构建独立的 agent context 对象，由它来承载这个 agent 的身份、memory、工具表、工作目录、配置视图和权限边界。这样真正被隔离的就是 agent 的运行上下文，而不是某个 OS 进程外壳。进程当然仍然可以作为高强度隔离手段存在，但它不应该成为所有 agent 的默认载体。
+
+同样，isolation 也不应该主要依赖 Hermes home 这种环境变量来管理。如果隔离边界要靠切换一个目录或一组环境变量来成立，那么很多本应由 runtime 显式控制的状态，最后都会退化成部署约定。环境变量更适合作为启动参数，而不是隔离机制本身。真正的 agent scope 应该是一个可以被 runtime 创建、查询、刷新和审计的对象。
+
+在这个前提下，gateway 也更适合横向复用。它没有必要 per-agent 带一套完整实例，而是可以作为共享入口，按 agent context 路由请求、暴露工具、裁剪权限，并复用连接池、会话和审计链路。这样既能保留边界，也能减少重复监听端口、重复握手和重复基础设施。
+
+实际上，现在 v0.13 新加入的 kanban 功能已经开始需要一套类似的机制了。只要系统里出现多个任务实体共享同一个 runtime、但各自维护不同上下文和作用域的需求，底层更需要的就是统一的 context 抽象，而不只是按进程切开。沿着这个方向继续走，Hermes 会更像一个真正的多 agent runtime，而不只是多个 agent 进程的管理器。
+
+## 小结
+
+Agent level isolation 的核心，不是给 agent 换一张 profile，也不是简单地多开几个进程，而是承认 agent 天然属于不同领域、不同信任域，也应该拥有不同的工具、skill、memory 和权限边界。
+
+所以，把所有 skill 都塞进一个通用 agent 并不是能力更强，而是在制造新的混乱：上下文窗口被挤占，同类型 skill 互相冲突，权限边界被抹平，agent 自己的领域焦点也会越来越模糊。你以为得到的是一个“全能 agent”，实际得到的往往只是一个难以管理的能力杂物间。
+
+Memory 也是一样。它不是 agent 的默认必需品。很多 worker 类 agent 只需要拿到任务、完成任务、返回结果，并不需要维护独立的长期记忆。真正需要 memory 的，是那些会长期存在于系统中、需要持续演进、持续积累经验和偏好的 agent。
+
+如果顺着这个方向继续往下走，Hermes 更合理的演进方式，也不会是把每个 agent 都做成 per-process 的独立进程，而是把 isolation 建立在明确的 agent context 之上：让 runtime 直接管理 agent 的 context 和 scope，让 gateway 横向复用，必要时再升级到进程或容器级隔离。这样才能既把边界做实，也不把整个系统做得过重。 
