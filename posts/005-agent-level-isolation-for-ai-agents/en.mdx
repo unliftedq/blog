@@ -1,0 +1,97 @@
+---
+title: Why AI Agents Need Agent-Level Isolation
+date: 2026-05-18
+slug: agent-level-isolation-for-ai-agents
+tags:
+  - AI
+  - Agent
+keywords:
+  - AI Agent
+  - Agent Isolation
+  - Skills
+  - Hermes
+  - MCP Gateway
+excerpt: "An agent profile can change how an agent talks, but it cannot change what the agent can actually reach: environment, tools, secrets, memory. What really needs isolating is the trust domain and the runtime domain, not the persona. This post is about why a single profile is not enough, why stuffing every skill into one general agent gets out of hand, when a separate Soul and memory are actually unnecessary, and how the isolation design in Hermes agent could become lighter."
+banner: /images/banners/agent-level-isolation-for-ai-agents.png
+
+---
+
+AI agents are quietly turning into something stranger than a chat window. They run for a long time, call tools, edit files, start processes. The more useful one of these agents gets, the more sensitive the surface area it touches: repositories, secrets, databases, browser sessions, cloud services, long-term memory, your own preferences.
+
+Once you reach that point, "who does this agent act like" stops being the interesting question. The interesting question is which trust domain it sits inside. What can it see? What can it call? What does it remember?
+
+Most products today answer with profiles. Swap the system prompt, swap the default tool set, and the agent looks like a different role. Profiles are useful, but they only change expression and task preference. They do not draw runtime boundaries. Multiple profiles still run inside the same process, share the same skills and MCP tools, and write into the same memory. They are masks. The agent underneath is still the same agent.
+
+When I say "agent isolation," I do not mean making the agent talk differently. I mean giving each agent its own domain at a structural level: its own memory, its own skills, its own tools, the whole stack of things that decide what it can actually do.
+
+## Profiles change roles, not boundaries
+
+Profile boundaries usually stop at the prompt layer. A profile can say "you are now a frontend expert," or "you only handle tests," or "keep answers short." It cannot meaningfully restrict the capabilities the runtime already holds.
+
+A few examples are enough:
+
+- A token configured for a DevOps agent can, in principle, also be reached by a slide-making agent if they share the same runtime.
+- The tool allowlist might change, but the underlying MCP tools, HTTP client, and database connection pool are still the same set.
+- When you actually need to split an agent, the split is domain-driven anyway. A coding agent has no business owning an office-suite tool surface.
+
+A profile is closer to a role card than a sandbox. It works well when the same agent needs to behave differently across scenarios. Real isolation has to sit lower than that: tool tables, credentials, working directories, long-term memory, dependencies, sometimes processes. At least some of those need to be separate. Otherwise "multiple agents" is just one agent putting on different masks.
+
+## Why stuffing every skill into one general agent goes wrong
+
+The skill abstraction itself is fine. Bundling prompts, tools, scripts, and usage notes into a capability the agent can pull in on demand is much cleaner than welding everything into one giant system prompt.
+
+The trouble starts at the other extreme. Skills feel useful, so the temptation is to install every skill onto one general-purpose agent. Short term, that agent looks like it can do anything. Longer term, it falls apart in four different ways at once.
+
+First, the context window pays for it. Every skill contributes tool descriptions, parameter notes, examples, and constraints. Those descriptions help the model find the right skill, right up until they don't. Once the skill list balloons, the descriptions themselves crowd the window. You can be loading a hundred skill descriptions locally and end up using exactly one.
+
+Second, similar skills start fighting each other. Picture four or five frontend-design skills mounted on one agent, each aimed at marketing sites, mobile UIs, internal dashboards, or landing pages. Each one has a real focus, but the descriptions all read the same: "designs," "implements," "optimizes," "refactors." Once they share an agent, the model cannot reliably pick the right one. What you wanted was "this scenario uses this skill." What you get is "the model uses whichever one feels closest right now."
+
+Third, permission boundaries quietly collapse. A coding skill, an email skill, a database skill, and a cloud-management skill mounted on the same agent effectively share one trust domain. A task as innocent-looking as "summarize this issue" can be steered by prompt injection into reading files, inspecting environment variables, and calling an external send tool. The author of each individual skill probably thought hard about that skill's own permissions. Once it joins a general agent, it shares risk with everything else there.
+
+Fourth, agents are domain-shaped to begin with. There is no real prize for a single skill set that covers everything. A finance agent does not need the skills of a UX-design agent. A pilot does not need to know how to swim, and that does not make them a worse pilot. A useful agent organizes its capabilities around its own domain instead of dragging in unrelated skills for the sake of being "general-purpose." Once skills cross domain boundaries, more of them just means more noise, and the agent drifts further from its actual job.
+
+This is the practical reason to isolate at the agent level. The goal is not to multiply agents for its own sake. It is to let each agent set carry the capabilities and scopes that match its scenario, so skill selection becomes a deterministic architectural fact instead of something the model has to guess at every step. The App Store agent installs only App Store metadata skills. The Release agent installs only release skills. The Debug agent installs only log and diagnosis skills. Enter a specific agent and you have entered a specific scenario, and the only skills around are the ones meant for it.
+
+## Designing agent memory
+
+Memory is one of the hottest topics in the agent space right now. There is a story going around that an agent only really "comes alive" once it has memory. I think that story is easy to overplay. Memory is not a default requirement for an agent. Plenty of agents do not need long-term memory at all.
+
+The clearest example is worker-style agents. They are basically worker bees: take an instruction, complete a well-defined task, hand back the result. They are not responsible for long-term relationships. They do not need to evolve over time. They have no reason to accumulate a stable persona for the next call. For this kind of agent, the current task context and some short-term state are usually enough. Forcing a dedicated memory store onto them mostly adds maintenance cost and invites pointless contamination. What this kind of agent needs to get better is its skills, not its memory.
+
+The agents that actually benefit from memory are the ones that live in the system long-term and have to keep evolving. An agent that owns a codebase, or a business pipeline, or a class of user relationships, or a particular workflow does need to build up preferences, past decisions, lessons from failures, and stable working practices over time. For those agents, memory is part of the capability, not a decoration on top.
+
+So in any agent-isolation design, memory should be a switch you can turn on, not a default that is always on.
+
+## How Hermes agent thinks about isolation
+
+What I find interesting about Hermes agent is that it refuses to reduce an agent to a profile. It treats the agent as an independent runtime unit. The idea has three layers.
+
+The first layer is independent identity and state. Different agents can have their own Soul, memory, skill directory, and working directory. The frontend agent accumulates components, styling, interaction patterns. The backend agent accumulates APIs, databases, deployment flows. They are not fighting for room inside one shared memory store. Each one keeps its own long-term state.
+
+The second layer is an independent runtime environment. Hermes currently leans on process-level isolation. Different agents can start independently, load their own environment variables, and mount their own tools and dependencies. The benefit is immediate. One agent crashing does not take the others down. One agent's credentials and tools are not silently exposed to another.
+
+The third layer is communication through a gateway. The gateway connects the host (editor, CLI, CI) to the agent runtime, and handles routing, tool exposure, permission checks, and audit-style cross-cutting concerns. The host does not need to micromanage every agent. It only needs to know which agent should receive a task.
+
+The interesting part of this design is not "every agent gets a process." It is that Hermes lifts an agent from a profile to a bounded entity, with its own identity, state, tools, environment, and external interface. Only at that point does isolation stop being a prompt-level promise.
+
+## Hermes can go further
+
+The direction is right, but the shape can go further. The current isolation model is a little too attached to "per process," as if every agent has to map to its own OS process for isolation to count. The thing actually worth abstracting is not the process. It is the agent's own context and scope.
+
+A more natural direction is to build an explicit agent-context object inside the runtime, carrying the agent's identity, memory, tool table, working directory, configuration view, and permission boundary. What you isolate then is the runtime context itself, not a particular OS-process shell. Processes can still exist as a hardened tier when you really need them, but they should not be the default container for every agent.
+
+Isolation also should not be driven mainly by something like a `HERMES_HOME` env var. When isolation depends on swapping a directory or a set of env vars, a lot of state that the runtime ought to control explicitly quietly degrades into deployment convention. Env vars work fine as startup arguments. They make a bad isolation mechanism. The real agent scope should be an object the runtime can create, query, refresh, and audit.
+
+Once you take that view, the gateway gets easier to share horizontally too. There is no need for one full gateway instance per agent. A shared entry point can route by agent context, expose tools, trim permissions, and reuse connection pools, sessions, and audit pipelines. The boundaries stay sharp, but you stop duplicating port listeners, handshakes, and supporting infrastructure.
+
+The new kanban feature added in v0.13 is already nudging in this direction. The moment the system has multiple task entities sharing one runtime, each one keeping its own context and scope, what you really need underneath is a unified context abstraction, not just more processes. Keep going down this path and Hermes starts to feel like an actual multi-agent runtime instead of a manager of multiple agent processes.
+
+## Summary
+
+Agent-level isolation is not about giving an agent a new profile, and it is not about spawning more processes. It is about accepting that agents belong to different domains and different trust domains, and giving them their own tools, skills, memory, and permission boundaries to match.
+
+Piling every skill onto one general-purpose agent does not produce a more capable agent. It produces a new kind of mess. The context window gets crowded. Similar skills collide. Permission boundaries flatten. The agent's own focus dissolves. You think you are building a do-everything agent. What you usually build is a closet of capabilities nobody can manage.
+
+Memory works the same way. Not a default requirement. Worker-style agents that take a task, run it, return a result do not need independent long-term memory. The ones that benefit from memory are the agents that stay in the system long-term, keep evolving, and need to accumulate experience and preferences over time.
+
+If you keep pulling on this thread, the more sensible evolution for Hermes is not making every agent its own process, but building isolation on top of an explicit agent context. Let the runtime manage that context and scope directly. Let the gateway be reused horizontally. Reach for process- or container-level isolation only when something actually warrants it. That is how you make the boundaries real without making the whole system too heavy to live with.
