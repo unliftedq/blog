@@ -7,8 +7,8 @@
    THEME TOKENS — editorial cream / ink with one warm accent
    ============================================================ */
 @theme {
-    --font-display: "Cabinet Grotesk", "Geist", ui-sans-serif, system-ui,
-        sans-serif;
+    --font-display:
+        "Cabinet Grotesk", "Geist", ui-sans-serif, system-ui, sans-serif;
     --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "Geist Mono", ui-monospace, "JetBrains Mono", monospace;
 
@@ -289,6 +289,18 @@ html.dark body {
 .prose-editorial code::before,
 .prose-editorial code::after {
     content: "";
+}
+
+.prose-editorial .katex {
+    color: inherit;
+    font-size: 1.05em;
+}
+
+.prose-editorial .katex-display {
+    margin: 1.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.25em 0;
 }
 
 .prose-editorial .gatsby-highlight {
