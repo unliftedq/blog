@@ -1,4 +1,6 @@
 import type { GatsbyConfig } from "gatsby";
+import rehypeKatex from "rehype-katex";
+import remarkMath from "remark-math";
 
 const config: GatsbyConfig = {
     siteMetadata: {
@@ -51,15 +53,15 @@ const config: GatsbyConfig = {
             options: {
                 extensions: [`.md`, `.mdx`],
                 mdxOptions: {
-                    remarkPlugins: [],
-                    rehypePlugins: [],
+                    remarkPlugins: [remarkMath],
+                    rehypePlugins: [rehypeKatex],
                 },
                 gatsbyRemarkPlugins: [
                     {
                         resolve: `gatsby-remark-images`,
                         options: {
-                            maxWidth: 800
-                        }
+                            maxWidth: 800,
+                        },
                     },
                     {
                         resolve: `gatsby-remark-prismjs`,
@@ -99,17 +101,15 @@ const config: GatsbyConfig = {
             resolve: `gatsby-plugin-clarity`,
             options: {
                 clarity_project_id: "fys6rjltq3",
-                enable_on_dev_env: false
+                enable_on_dev_env: false,
             },
         },
         {
             resolve: `gatsby-plugin-google-gtag`,
             options: {
-                trackingIds: [
-                    "G-E335734SN7",
-                ],
+                trackingIds: ["G-E335734SN7"],
                 gtagConfig: {
-                    anonymize_ip: true
+                    anonymize_ip: true,
                 },
                 pluginConfig: {
                     head: false,
