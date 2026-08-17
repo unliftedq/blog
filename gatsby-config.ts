@@ -1,5 +1,6 @@
 import type { GatsbyConfig } from "gatsby";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
 const config: GatsbyConfig = {
@@ -53,7 +54,7 @@ const config: GatsbyConfig = {
             options: {
                 extensions: [`.md`, `.mdx`],
                 mdxOptions: {
-                    remarkPlugins: [remarkMath],
+                    remarkPlugins: [remarkMath, remarkGfm],
                     rehypePlugins: [rehypeKatex],
                 },
                 gatsbyRemarkPlugins: [
